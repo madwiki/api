@@ -50,7 +50,7 @@ const MEGABYTE = 1024 * 1024;
 
 const l = logger('api-ws');
 
-function eraseRecord<T> (record: Record<string, T>, cb?: (item: T) => void): void {
+function eraseRecord<T>(record: Record<string, T>, cb?: (item: T) => void): void {
   Object.keys(record).forEach((key): void => {
     if (cb) {
       cb(record[key]);
@@ -113,7 +113,7 @@ export class WsProvider implements ProviderInterface {
    * @param {string | string[]}  endpoint    The endpoint url. Usually `ws://ip:9944` or `wss://ip:9944`, may provide an array of endpoint strings.
    * @param {boolean} autoConnect Whether to connect automatically or not.
    */
-  constructor (endpoint: string | string[] = defaults.WS_URL, autoConnectMs: number | false = RETRY_DELAY, headers: Record<string, string> = {}) {
+  constructor(endpoint: string | string[] = defaults.WS_URL, autoConnectMs: number | false = RETRY_DELAY, headers: Record<string, string> = {}) {
     const endpoints = Array.isArray(endpoint)
       ? endpoint
       : [endpoint];
@@ -155,7 +155,7 @@ export class WsProvider implements ProviderInterface {
   /**
    * @summary `true` when this provider supports subscriptions
    */
-  public get hasSubscriptions (): boolean {
+  public get hasSubscriptions(): boolean {
     return true;
   }
 
@@ -163,21 +163,21 @@ export class WsProvider implements ProviderInterface {
    * @summary Whether the node is connected or not.
    * @return {boolean} true if connected
    */
-  public get isConnected (): boolean {
+  public get isConnected(): boolean {
     return this.#isConnected;
   }
 
   /**
    * @description Promise that resolves the first time we are connected and loaded
    */
-  public get isReady (): Promise<WsProvider> {
+  public get isReady(): Promise<WsProvider> {
     return this.#isReadyPromise;
   }
 
   /**
    * @description Returns a clone of the object
    */
-  public clone (): WsProvider {
+  public clone(): WsProvider {
     return new WsProvider(this.#endpoints);
   }
 
@@ -187,7 +187,7 @@ export class WsProvider implements ProviderInterface {
    * connect manually using this method.
    */
   // eslint-disable-next-line @typescript-eslint/require-await
-  public async connect (): Promise<void> {
+  public async connect(): Promise<void> {
     try {
       this.#endpointIndex = (this.#endpointIndex + 1) % this.#endpoints.length;
       this.#websocket = typeof xglobal.WebSocket !== 'undefined' && isChildClass(xglobal.WebSocket, WebSocket)
@@ -221,7 +221,7 @@ export class WsProvider implements ProviderInterface {
   /**
    * @description Connect, never throwing an error, but rather forcing a retry
    */
-  public async connectWithRetry (): Promise<void> {
+  public async connectWithRetry(): Promise<void> {
     if (this.#autoConnectMs > 0) {
       try {
         await this.connect();
@@ -239,16 +239,18 @@ export class WsProvider implements ProviderInterface {
    * @description Manually disconnect from the connection, clearing auto-connect logic
    */
   // eslint-disable-next-line @typescript-eslint/require-await
-  public async disconnect (): Promise<void> {
+  public async disconnect(): Promise<void> {
     // switch off autoConnect, we are in manual mode now
     this.#autoConnectMs = 0;
-
+    console.error("++disconnect--this.#websocket", this.#websocket);
     try {
       if (this.#websocket) {
         // 1000 - Normal closure; the connection successfully completed
+        console.error("++#websocket.close");
         this.#websocket.close(1000);
       }
     } catch (error) {
+      console.error("++error", error);
       l.error(error);
 
       this.#emit('error', error);
@@ -260,7 +262,7 @@ export class WsProvider implements ProviderInterface {
   /**
    * @description Returns the connection stats
    */
-  public get stats (): ProviderStats {
+  public get stats(): ProviderStats {
     return {
       active: {
         requests: Object.keys(this.#handlers).length,
@@ -276,7 +278,7 @@ export class WsProvider implements ProviderInterface {
    * @param  {ProviderInterfaceEmitCb}  sub  Callback
    * @return unsubscribe function
    */
-  public on (type: ProviderInterfaceEmitted, sub: ProviderInterfaceEmitCb): () => void {
+  public on(type: ProviderInterfaceEmitted, sub: ProviderInterfaceEmitCb): () => void {
     this.#eventemitter.on(type, sub);
 
     return (): void => {
@@ -290,7 +292,7 @@ export class WsProvider implements ProviderInterface {
    * @param params Encoded parameters as applicable for the method
    * @param subscription Subscription details (internally used)
    */
-  public send <T = any> (method: string, params: unknown[], isCacheable?: boolean, subscription?: SubscriptionHandler): Promise<T> {
+  public send<T = any>(method: string, params: unknown[], isCacheable?: boolean, subscription?: SubscriptionHandler): Promise<T> {
     this.#stats.total.requests++;
 
     const body = this.#coder.encodeJson(method, params);
@@ -311,7 +313,7 @@ export class WsProvider implements ProviderInterface {
     return resultPromise;
   }
 
-  async #send <T> (json: string, method: string, params: unknown[], subscription?: SubscriptionHandler): Promise<T> {
+  async #send <T>(json: string, method: string, params: unknown[], subscription?: SubscriptionHandler): Promise<T> {
     return new Promise<T>((resolve, reject): void => {
       try {
         assert(this.isConnected && !isNull(this.#websocket), 'WebSocket is not connected');
@@ -359,7 +361,7 @@ export class WsProvider implements ProviderInterface {
    * })
    * ```
    */
-  public subscribe (type: string, method: string, params: unknown[], callback: ProviderInterfaceCallback): Promise<number | string> {
+  public subscribe(type: string, method: string, params: unknown[], callback: ProviderInterfaceCallback): Promise<number | string> {
     this.#stats.total.subscriptions++;
 
     // subscriptions are not cached, LRU applies to .at(<blockHash>) only
@@ -369,7 +371,7 @@ export class WsProvider implements ProviderInterface {
   /**
    * @summary Allows unsubscribing to subscriptions made with [[subscribe]].
    */
-  public async unsubscribe (type: string, method: string, id: number | string): Promise<boolean> {
+  public async unsubscribe(type: string, method: string, id: number | string): Promise<boolean> {
     const subscription = `${type}::${id}`;
 
     // FIXME This now could happen with re-subscriptions. The issue is that with a re-sub
@@ -398,8 +400,10 @@ export class WsProvider implements ProviderInterface {
   };
 
   #onSocketClose = (event: CloseEvent): void => {
+    console.error("++socketClose", event);
     const error = new Error(`disconnected from ${this.#endpoints[this.#endpointIndex]}: ${event.code}:: ${event.reason || getWSErrorString(event.code)}`);
-
+    console.error("++this.#autoConnectMs", this.#autoConnectMs);
+    console.error("++error", error);
     if (this.#autoConnectMs > 0) {
       l.error(error.message);
     }
